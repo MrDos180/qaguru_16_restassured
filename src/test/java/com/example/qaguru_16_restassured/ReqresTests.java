@@ -1,84 +1,102 @@
 package com.example.qaguru_16_restassured;
 
+import com.example.qaguru_16_restassured.models.CreateUser;
+import com.example.qaguru_16_restassured.models.UserData;
+import com.example.qaguru_16_restassured.specs.Specs;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static com.example.qaguru_16_restassured.specs.Specs.*;
 import static io.restassured.RestAssured.given;
-import static io.restassured.http.ContentType.JSON;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ReqresTests {
 
     @Test
     @DisplayName("Проверка пользователья по id")
     void checkUserNameById() {
-        given()
-                .log().all()
-                .when()
-                .get("https://reqres.in/api/users/2")
+       UserData data = request.when()
+                .get("/users/2")
                 .then()
-                .log().all()
-                .statusCode(200)
-                .body("data.first_name",is("Janet"));
+                .spec(Specs.responseSpec)
+                .log().body().extract().as(UserData.class);
+        assertEquals(2,data.getUser().getId());
+    }
+    @Test
+    @DisplayName("Проверка получения списка пользователей")
+    void checkListOfUsers(){
+        given()
+                .spec(request)
+                .when()
+                .get("/users?page=2")
+                .then()
+                .log().body()
+                .body("data.findAll{it.id}.last_name.flatten()",hasItem("Howell"));
     }
 
     @Test
     @DisplayName("Проверка что пользователь не найден")
     void checkUserNotFound() {
-        given()
-                .log().all()
-                .when()
+        request.when()
                 .get("https://reqres.in/api/users/23")
                 .then()
-                .log().all()
-                .statusCode(404);
+                .spec(Specs.responseSpecError404)
+                .log().all();
     }
 
     @Test
     @DisplayName("Проверка создания пользователя")
     void checkCreateUser() {
-        String body = "{ \"name\": \"Smith\", \"job\": \"agent\"}";
-                given()
-                        .log().uri()
-                        .contentType(JSON)
-                        .body(body)
-                        .when()
-                        .post("https://reqres.in/api/users")
-                        .then()
-                        .log().status()
-                        .log().body()
-                        .statusCode(201)
-                        .body("name", is("Smith"))
-                        .body("job", is("agent"));
+        CreateUser body = new CreateUser();
+        body.setName("Smith");
+        body.setJob("agent");
+
+        given()
+                .spec(request)
+                .body(body)
+                .when()
+                .post("/users")
+                .then()
+                .log().status()
+                .log().body()
+                .spec(responseSpec201)
+                .body("name", is("Smith"))
+                .body("job", is("agent"))
+                .extract().as(UserData.class);
     }
 
     @Test
     @DisplayName("Проверка обновления данных пользователя")
     void checkUpdateUser() {
-        String body = "{ \"name\": \"Erlond\", \"job\": \"rivindel president\"}";
+        CreateUser body = new CreateUser();
+        body.setName("Erlond");
+        body.setJob("rivindel president");
+
         given()
-                .log().uri()
-                .contentType(JSON)
+                .spec(request)
                 .body(body)
                 .when()
-                .put("https://reqres.in/api/users/2")
+                .put("/users/2")
                 .then()
                 .log().status()
                 .log().body()
-                .statusCode(200)
+                .spec(responseSpec)
                 .body("name", is("Erlond"))
-                .body("job", is("rivindel president"));
+                .body("job", is("rivindel president"))
+                .extract().as(UserData.class);
     }
+
     @Test
     @DisplayName("Проверка удадения пользователя")
     void checkDeleteUser() {
         given()
-                .log().all()
-                .when()
-                .delete("https://reqres.in/api/users/2")
+                .spec(request).when()
+                .delete("/users/2")
                 .then()
-                .log().all()
-                .statusCode(204);
+                .spec(responseSpec204)
+                .log().all();
     }
 
 }
